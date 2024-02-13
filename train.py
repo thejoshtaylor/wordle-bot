@@ -381,7 +381,7 @@ def findHighestReductionWord(dictionary, results=None):
         # Print time in a dd:hh:mm:ss format
         timeTaken = time.time() - startTime
         numDone = i - startIndex + 1
-        numLeft = startSize - numDone
+        numLeft = startSize - i
         # timeLeft = round(timeTaken / (i + 1) * (startSize - i - 1))
         # timeLeft = round(timeTaken / numDone * (startSize - numDone))
         timeLeft = round(timeTaken / numDone * numLeft)
