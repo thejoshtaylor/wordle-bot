@@ -161,3 +161,5 @@ cython_debug/
 
 # Pickled results
 *.pkl
+*.csv
+*.xlsx
