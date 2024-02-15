@@ -136,7 +136,7 @@ def findBestWord(possibleWords, allWords, history):
 
 
 def solve_word(index=0, getNextWord=findBestWord, testWord=try_word, printOut=True):
-    starting_word = "trace"
+    starting_word = "ranes"
 
     # Initialize the variables
     attempts = 0
