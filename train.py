@@ -6,6 +6,7 @@ import random
 import signal
 import pickle
 import time
+import string
 
 # import multiprocessing.pool as pool
 
@@ -214,6 +215,24 @@ def getRemainingWords(dictionary, result):
 times = [0.0] * 10
 totalTimes = 0
 
+
+#
+# Following two functions taken directly from https://www.inspiredpython.com/article/solving-wordle-puzzles-with-basic-python
+#
+# def match_word_vector(word, word_vector):
+#     assert len(word) == len(word_vector)
+#     for letter, v_letter in zip(word, word_vector):
+#         if letter not in v_letter:
+#             return False
+#     return True
+
+# def match(word_vector, possible_words):
+#     return [word for word in possible_words if match_word_vector(word, word_vector)]
+#
+# End borrowed section
+#
+
+
 # Check the guess and get the remaining words
 def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
     global times
@@ -230,6 +249,11 @@ def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
     times[1] += time.time() - start
     start = time.time()
 
+    # if wordVector is None:
+    #     wordVector = [set(string.ascii_lowercase) for _ in range(5)]
+
+    # exactly = []
+    # exactlyNot = []
     exactly = [''] * 5
     exactlyNot = [''] * 5
     mustNotHave = set()
@@ -239,6 +263,9 @@ def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
     for i, letter in enumerate(guessLetters):
         # Green
         if actualLetters[i] == letter:
+            # wordVector[i] = {letter}
+            # print(f'[g] Letter {i} is "{letter}"')
+            # exactly.append(letter)
             exactly[i] = letter
             # tempDict = [word for word in tempDict if word[i] == letter]
             actualLetters[i] = ''
@@ -251,6 +278,13 @@ def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
     for i, letter in enumerate(guessLetters):
         # Yellow
         if letter in actualLetters:
+            # try:
+            #     wordVector[i].remove(letter)
+            #     # print(f'[Y] Letter "{letter}" removed from {i}')
+            # except KeyError:
+            #     pass
+
+            # exactlyNot.append(letter)
             exactlyNot[i] = letter
             mustHave.add(letter)
             # tempDict = [word for word in tempDict if letter in word]
@@ -259,7 +293,15 @@ def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
             actualLetters.remove(letter)
         # Grey
         elif letter not in exactly and letter not in exactlyNot:
+            # for j in range(5):
+            #     try:
+            #         wordVector[j].remove(letter)
+            #         # print(f'[G] Letter "{letter}" removed from {j}')
+            #     except KeyError:
+            #         # print(f'[G] Letter "{letter}" not in {j}')
+            #         pass
             mustNotHave.add(letter)
+                
             # tempDict = [word for word in tempDict if letter not in word]
 
     times[3] += time.time() - start
@@ -278,6 +320,15 @@ def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
     # print(f'Just Has: {justHas}')
 
     # tempDict = filter(lambda _: True, dictionary)
+
+    #
+    # Using SETS
+    #
+    # tempDict = match(wordVector, tempDict)
+
+    #
+    # MAIN
+    #
     
     # Count the number of words that fit the criteria
     for ind in range(5):
@@ -296,6 +347,12 @@ def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
     for letter in mustNotHave:
         tempDict = [word for word in tempDict if letter not in word]
         # tempDict = filter(lambda word: letter not in word, tempDict)
+
+
+    #
+    # WORD BY WORD
+    #
+    
     # for word in dictionary:
     #     good = True
     #     for i in range(5):
@@ -340,6 +397,7 @@ def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
         print(f'Exactly Not: {exactlyNot}')
         print(f'Just Not: {mustNotHave}')
         print(f'Just Has: {mustHave}')
+        # print(wordVector)
         print(f'Length of tempDict: {len(tempDict)}')
         print()
     # print(f'Found Words: {foundWords}')
