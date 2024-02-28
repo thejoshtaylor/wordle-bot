@@ -212,50 +212,54 @@ def getRemainingWords(dictionary, result):
     return tempDict
 
 times = [0.0] * 10
+totalTimes = 0
 
 # Check the guess and get the remaining words
 def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
     global times
+    global totalTimes
 
     start = time.time()
     # More efficient to do it in one go
-    # tempDict = dictionary.copy()
+    tempDict = dictionary.copy()
     times[0] += time.time() - start
     start = time.time()
 
-    letters = list(actualWord)
+    guessLetters = list(guess)
+    actualLetters = list(actualWord)
     times[1] += time.time() - start
     start = time.time()
 
-    exactly = []
-    exactlyNot = []
-    justNot = set()
-    justHas = set()
+    exactly = [''] * 5
+    exactlyNot = [''] * 5
+    mustNotHave = set()
+    mustHave = set()
 
     # Check each letter in the guess to see if it's in the word
-    for i, letter in enumerate(guess):
+    for i, letter in enumerate(guessLetters):
         # Green
-        if letters[i] == letter:
-            exactly.append((i, letter))
+        if actualLetters[i] == letter:
+            exactly[i] = letter
             # tempDict = [word for word in tempDict if word[i] == letter]
-            letters[i] = ''
+            actualLetters[i] = ''
+            guessLetters[i] = ''
 
     times[2] += time.time() - start
     start = time.time()
     
     # After we have all the greens found, we can check the rest
-    for i, letter in enumerate(guess):
+    for i, letter in enumerate(guessLetters):
         # Yellow
-        if letter in actualWord:
-            exactlyNot.append((i, letter))
-            justHas.add(letter)
+        if letter in actualLetters:
+            exactlyNot[i] = letter
+            mustHave.add(letter)
             # tempDict = [word for word in tempDict if letter in word]
 
             # Only make a yellow for the first instance of the letter
-            letters[i] = ''
+            actualLetters.remove(letter)
         # Grey
-        elif letter not in [x for (_, x) in exactly]:
-            justNot.add(letter)
+        elif letter not in exactly and letter not in exactlyNot:
+            mustNotHave.add(letter)
             # tempDict = [word for word in tempDict if letter not in word]
 
     times[3] += time.time() - start
@@ -265,28 +269,87 @@ def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
     # tempDict = dictionary.copy()
     # foundWords = 0
             
-    tempDict = dictionary.copy()
+    # tempDict = dictionary.copy()
+    # print(f'Length of tempDict: {len(tempDict)}')
+
+    # print(f'Exactly: {exactly}')
+    # print(f'Exactly Not: {exactlyNot}')
+    # print(f'Just Not: {justNot}')
+    # print(f'Just Has: {justHas}')
+
     # tempDict = filter(lambda _: True, dictionary)
     
     # Count the number of words that fit the criteria
-    for ind, letter in exactly:
-        tempDict = [word for word in tempDict if word[ind] == letter]
+    for ind in range(5):
+        if exactly[ind] != '':
+            letter = exactly[ind]
+            tempDict = [word for word in tempDict if word[ind] == letter]
         # tempDict = filter(lambda word: word[ind] == letter, tempDict)
-    for letter in justHas:
+    for letter in mustHave:
         tempDict = [word for word in tempDict if letter in word]
         # tempDict = filter(lambda word: letter in word, tempDict)
-    for ind, letter in exactlyNot:
-        tempDict = [word for word in tempDict if word[ind] != letter]
+    for ind in range(5):
+        if exactlyNot[ind] != '':
+            letter = exactlyNot[ind]
+            tempDict = [word for word in tempDict if word[ind] != letter]
         # tempDict = filter(lambda word: word[ind] != letter, tempDict)
-    for letter in justNot:
+    for letter in mustNotHave:
         tempDict = [word for word in tempDict if letter not in word]
         # tempDict = filter(lambda word: letter not in word, tempDict)
+    # for word in dictionary:
+    #     good = True
+    #     for i in range(5):
+    #         if exactly[i] != '' and word[i] != exactly[i]:
+    #             good = False
+    #             break
+    #         # if word[i] != letter:
+    #         #     good = False
+    #         #     break
+    #     if not good:
+    #         continue
+    #     for i in range(5):
+    #         if exactlyNot[i] != '' and word[i] == exactlyNot[i]:
+    #             good = False
+    #             break
+    #         # if word[ind] == letter:
+    #         #     good = False
+    #         #     break
+    #     if not good:
+    #         continue
+    #     for letter in mustHave:
+    #         if letter not in word:
+    #             good = False
+    #             break
+    #     if not good:
+    #         continue
+    #     for letter in mustNotHave:
+    #         if letter in word:
+    #             good = False
+    #             break
+    #     if good:
+    #         tempDict.append(word)
     
     times[4] += time.time() - start
     start = time.time()
 
     foundWords = len(tempDict)
+    if foundWords == 0:
+        print()
+        print(f'Zero remaining! "{guess}" -> "{actualWord}"!')
+        print(f'Exactly: {exactly}')
+        print(f'Exactly Not: {exactlyNot}')
+        print(f'Just Not: {mustNotHave}')
+        print(f'Just Has: {mustHave}')
+        print(f'Length of tempDict: {len(tempDict)}')
+        print()
+    # print(f'Found Words: {foundWords}')
     # foundWords = sum(1 for _ in tempDict)
+
+    # Exactly our word
+    if len([x for x in exactly if x != '']) == 5:
+        # print()
+        # print(f'Found exact! "{guess}" is "{actualWord}"!')
+        foundWords = 0
 
     # del tempDict
 
@@ -304,6 +367,8 @@ def checkGuessAndGetRemainingWords(dictionary, guess, actualWord):
     #                     foundWords += 1
     
     times[5] += time.time() - start
+    
+    totalTimes += 1
     
     return foundWords
 
@@ -414,6 +479,74 @@ def findHighestReductionWord(dictionary, results=None):
 
     return results
 
+# Get the minimum average remaining words
+def getMinimumMaxRemaining(currRemaining, dictionary, failedAttempts):
+    print()
+
+    # Keep track of the best word
+    minMax = len(currRemaining)
+    minWord = '     '
+
+    failedWords = [word for word, _ in failedAttempts]
+    # print(f'Failed Words: {failedWords}')
+
+    # Go through each of the words left in the dictionary
+    for i, trialWord in enumerate(dictionary):
+        if i % 100 == 0:
+            print(f'\r[{i:5d}/{len(dictionary):5d}] => {trialWord} -- best: {minWord} ({minMax:5d})', end='', flush=True)
+        if trialWord in failedWords:
+            continue
+        maxWords = 0
+        # Figure out how many guesses it's going to take for each of the possible words
+        for actualWord in currRemaining:
+            words = checkGuessAndGetRemainingWords(currRemaining, trialWord, actualWord)
+            # if words <= 0:
+            #     print(f'Zero remaining! [{len(currRemaining)}] "{trialWord}" -> "{actualWord}"!')
+
+            if words > maxWords:
+                maxWords = words
+        # Calculate the average
+        if maxWords < minMax:
+            minMax = words
+            minWord = trialWord
+
+    print()
+    if minWord not in currRemaining:
+        print(f'"{minWord}" NOT in set')
+    print(f'Minimum Max Remaining: {minMax}')
+            
+    return minWord
+
+# Get the minimum average remaining words
+def getMinimumAvgRemaining(currRemaining, dictionary, failedAttempts):
+    # Keep track of the best word
+    minAvg = len(currRemaining)
+    minWord = '     '
+
+    failedWords = [word for word, _ in failedAttempts]
+    print(f'Failed Words: {failedWords}')
+
+    # Go through each of the words left in the dictionary
+    for i, trialWord in enumerate(dictionary):
+        if i % 100 == 0:
+            print(f'\r[{i:5d}/{len(dictionary):5d}] => {trialWord} -- best: {minWord} ({minAvg:5d})', end='', flush=True)
+        if trialWord in failedWords:
+            continue
+        words = 0
+        # Figure out how many guesses it's going to take for each of the possible words
+        for actualWord in currRemaining:
+            words += checkGuessAndGetRemainingWords(currRemaining, trialWord, actualWord)
+            
+        words /= len(currRemaining)
+        # Calculate the average
+        if words < minAvg:
+            minAvg = words
+            minWord = trialWord
+    print()
+    print(f'Minimum Avg Remaining: {minAvg}')
+            
+    return minWord
+
 # Handle the signal
 def signal_handler(sig, frame):
     global stopSig
@@ -427,7 +560,7 @@ def signal_handler(sig, frame):
     # sys.exit(0)
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGINT, signal_handler)
+    # signal.signal(signal.SIGINT, signal_handler)
     # signal.signal(signal.SIGTERM, signal_handler)
     # trials()
     with open("dictionary.txt", "r") as f:
@@ -435,27 +568,49 @@ if __name__ == '__main__':
 
     # check if the pickle file exists
     print()
-    try:
-        with open('results.pkl', 'rb') as f:
-            res = pickle.load(f)
-            print('Results loaded from pickle')
-    except:
-        res = None
-        print('Results not found, running training')
+    # try:
+    #     with open('results.pkl', 'rb') as f:
+    #         res = pickle.load(f)
+    #         print('Results loaded from pickle')
+    # except:
+    #     res = None
+    #     print('Results not found, running training')
 
-    if res is not None:
-        # Count how many words are in the results
-        count = 0
-        for word in res:
-            count += 1
-        print(f'{count} words loaded')
+    # if res is not None:
+    #     # Count how many words are in the results
+    #     count = 0
+    #     for word in res:
+    #         count += 1
+    #     print(f'{count} words loaded')
+    #     print()
+
+
+    # res = findHighestReductionWord(dictionary, res)
+
+
+    # with open('results.pkl', 'wb') as f:
+    #     pickle.dump(res, f)
+
+    # print('Results pickled')
+
+    import main
+
+    # Start the game
+    index = 0
+    while True:
+        print("Starting a new game...")
+        attempts = main.solve_word(index=index, getNextWord=lambda x, y, z: getMinimumMaxRemaining(x, y, z), printOut=True)
+        index = index + 1
         print()
-
-
-    res = findHighestReductionWord(dictionary, res)
-
-
-    with open('results.pkl', 'wb') as f:
-        pickle.dump(res, f)
-
-    print('Results pickled')
+        print(f'Game over! It took {attempts} attempts to solve the word!')
+        print()
+        # print times
+        print('Times:', times)
+        print('Total Times:', totalTimes)
+        print('Normalized Times (us):', [t / totalTimes * 1_000_000 for t in times])
+        print()
+        print("Press enter to start a new game, [q] to quit")
+        temp = input()
+        if temp.lower() == "q":
+            break
+        print()

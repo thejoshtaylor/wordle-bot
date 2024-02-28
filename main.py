@@ -239,8 +239,8 @@ def solve_word(index=0, getNextWord=findBestWord, testWord=try_word, printOut=Tr
                 [a.get("color") for a in sorted(result, key=lambda x: x.get("index"))],
             )
         )
-        if test_word in tempDict:
-            tempDict.remove(test_word)
+        # if test_word in tempDict:
+        #     tempDict.remove(test_word)
 
         # Filter the dictionary
         for ind, letter in must_not_have:
@@ -295,20 +295,65 @@ def solve_word(index=0, getNextWord=findBestWord, testWord=try_word, printOut=Tr
 
     return attempts + 1
 
+def colorWord(result):
+    toPrint = ["", "", "", "", ""]
+
+    # Go through each letter in the returned result
+    for a in result:
+        if a.get("color") == "grey":
+            toPrint[a.get("index")] = a.get("letter")
+        elif a.get("color") == "yellow":
+            toPrint[a.get("index")] = "\033[93m" + a.get("letter") + "\033[0m"
+        elif a.get("color") == "green":
+            toPrint[a.get("index")] = "\033[92m" + a.get("letter") + "\033[0m"
+
+    return ''.join(toPrint)
 
 def main():
     index = 0
 
+    os.system("clear")
+
     # Start the game
     while True:
-        print("Starting a new game...")
-        attempts = solve_word(index)
-        index = index + 1
-        print("Press enter to start a new game, [q] to quit")
-        temp = input()
-        if temp.lower() == "q":
-            break
+        # Print a menu for auto vs manual solve
+        # 1. Auto
+        # 2. Manual
+        # 3. Quit
+
+        # Print menu
+        print("|" + "-" * 30 + "|")
+        print("|" + "Wordle Solver".center(30) + "|")
+        print("|" + "-" * 30 + "|")
         print()
+        print("1. Auto")
+        print("2. Manual")
+        print("3. Quit")
+        print()
+        choice = input("> ")
+
+        # Check the choice
+        if choice == "1":
+            # Auto
+            attempts = solve_word(index)
+            index = index + 1
+            print()
+        elif choice == "2":
+            # Manual
+            for i in range(6):
+                print("Enter the word to test: ", end="")
+                word = input()
+                result = try_word(word, index)
+                print(f'[{i + 1}] {colorWord(result)}')
+                
+                print()
+                
+            index = index + 1
+        elif choice == "3":
+            # Quit
+            break
+        else:
+            print("Invalid choice")
 
 
 if __name__ == "__main__":
