@@ -309,10 +309,12 @@ def colorWord(result):
 
     return ''.join(toPrint)
 
+import wordle
+
 def main():
     index = 0
 
-    os.system("clear")
+    # os.system("clear")
 
     # Start the game
     while True:
@@ -321,32 +323,61 @@ def main():
         # 2. Manual
         # 3. Quit
 
+        word = wordle.get_word_of_the_day(index)
+        index = index + 1
+
         # Print menu
-        print("|" + "-" * 30 + "|")
-        print("|" + "Wordle Solver".center(30) + "|")
-        print("|" + "-" * 30 + "|")
         print()
-        print("1. Auto")
-        print("2. Manual")
+        print("-" + "-" * 30 + "-")
+        print("|" + "Wordle Solver".center(30) + "|")
+        print("-" + "-" * 30 + "-")
+        print()
+        print("1. Test Compare Words")
+        print("2. Play Game")
         print("3. Quit")
         print()
         choice = input("> ")
+        print()
 
         # Check the choice
         if choice == "1":
-            # Auto
-            attempts = solve_word(index)
-            index = index + 1
+            # Test Compare
+            print("Actual Word")
+            word = wordle.get_valid_word()
+            print("Guess Word")
+            guess = wordle.get_valid_word()
+            result = wordle.check_guess(word, guess)
+            print(f"Result: {wordle.colored_word(guess, result)}")
             print()
         elif choice == "2":
+            print("Manual Input, 6 attempts")
             # Manual
             for i in range(6):
-                print("Enter the word to test: ", end="")
-                word = input()
-                result = try_word(word, index)
-                print(f'[{i + 1}] {colorWord(result)}')
+                # print("Enter the word to test: ", end="")
+
+                guess = ''
+                while True:
+                    guess = input("> ")
+                    if not wordle.is_valid_guess(guess):
+                        print("Invalid guess")
+                    else:
+                        break
+
+                result = wordle.check_guess(word, guess)
+                # result = try_word(word, index).get("result")
+                print(f'[{i + 1}] {wordle.colored_word(guess, result)}')
                 
                 print()
+
+                # if they're done
+                if all([r == 'g' for r in result]):
+                    print(f"Solved in {i + 1} attempts!")
+                    break
+            
+            # if we failed
+            if not all([r == 'g' for r in result]):
+                print(f"Failed to solve the game :(")
+                print(f"The word was {word} {result}")
                 
             index = index + 1
         elif choice == "3":
