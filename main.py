@@ -10,19 +10,14 @@ import wordle
 def getBestWord(tempDict):
     # Get rankings for every word in the given list
     csv_file = csv.reader(open("dict-rank.csv", "r"))
-    best_word = None
-    best_rank = 0
 
+    # The csv is sorted by the most common words, so we can just return the first one we find
     for row in csv_file:
         if row[0] in tempDict:
-            if int(row[1]) > best_rank:
-                best_rank = int(row[1])
-                best_word = row[0]
+            return row[0]
 
-    if best_word is None:
-        best_word = tempDict[0]
-
-    return best_word
+    # If we can't find the word, just return the first one in the given dictionary
+    return tempDict[0]
 
 # Automatically solve the wordle
 def solve_word(word, starting_word = "ranes", printOut=True):
