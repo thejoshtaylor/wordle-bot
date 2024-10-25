@@ -37,9 +37,11 @@ def is_valid_guess(guess):
 def get_valid_word():
     while True:
         word = input("> ").lower()
-        print()
+
         if is_valid_guess(word):
             return word
+        elif word == '':
+            return get_word_of_the_day()
         print("Invalid word. Try again.")
 
 # This function gets the green, yellow, and gray pattern of a guess
@@ -60,17 +62,16 @@ def check_guess(word, guess):
         if guess[i] == word[i]:
             response[i] = 'g'
             wordList[i] = ' '
-    
+
     # Check each letter for a partial match
     for i in range(5):
-        if guess[i] in wordList:
+        if response[i] != 'g' and guess[i] in wordList:
             response[i] = 'y'
             wordList[wordList.index(guess[i])] = ' '
 
     return response
 
 # This function takes the response and returns the printable string for console coloring
-
 def colored_word(guess, response):
     assert len(guess) == 5
     assert len(response) == 5
@@ -116,7 +117,11 @@ def find_words(guess, response, dict=None):
             guessList[i] = ''
         # Grey
         else:
-            mustNotHave.append(guessList[i])
+            tmp = guessList[i]
+            guessList[i] = ''
+            if tmp not in guessList and tmp not in exact and tmp not in mustHave and tmp not in exactNot:
+                mustNotHave.append(tmp)
+            exactNot[i] = tmp
 
     # Filter the dictionary
     
