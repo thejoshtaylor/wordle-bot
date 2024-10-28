@@ -4,6 +4,11 @@
 # Import the necessary libraries
 import os
 import csv
+import random
+import time
+from multiprocessing import Process, Pipe
+from rich.progress import Progress
+from rich import print
 import wordle
 
 # Get the best word from the dictionary
@@ -20,7 +25,7 @@ def getBestWord(tempDict):
     return tempDict[0]
 
 # Automatically solve the wordle
-def solve_word(word, starting_word = "ranes", printOut=True):
+def solve_word(word, starting_word="ranes", printOut=True):
     # Initialize the variables
     attempts = 0
     solved = False
@@ -70,6 +75,188 @@ def solve_word(word, starting_word = "ranes", printOut=True):
 
     return solved, attempts + 1
 
+# Run many solves
+def manySolve(numToSolve, starting_word="ranes", printOut=True):
+
+    # Stat variables
+    successes = 0
+    total = 0
+    totalAttempts = 0
+    maxAttempts = 0
+    minAttempts = 1000
+    under6 = 0
+    under6Attempts = 0
+
+    # Get the words to solve
+    words = wordle.dictionary.copy()
+    random.shuffle(words)
+    words = words[:numToSolve]
+
+    # Clear the screen
+    if printOut:
+        os.system("cls" if os.name == "nt" else "clear")
+        print("Many Solve")
+        print()
+        print("Solving... [  0.0%]", end="", flush=True)
+
+    lastPercent = 0
+
+    # Solve the words
+    for i, word in enumerate(words):
+        success, attempts = solve_word(word, starting_word=starting_word, printOut=False)
+        
+        # Keep track of stats
+        if success:
+            successes += 1
+            if attempts <= 6:
+                under6 += 1
+                under6Attempts += attempts
+        total += 1
+        totalAttempts += attempts
+        if attempts > maxAttempts:
+            maxAttempts = attempts
+        if attempts < minAttempts:
+            minAttempts = attempts
+
+        # Progress
+        percent = round((i + 1) / numToSolve, 3)
+
+        if percent > lastPercent:
+            lastPercent = percent
+            if printOut:
+                print(f"\rSolving... [{(i + 1) / numToSolve:6.1%}]", end="", flush=True)
+            else:
+                yield (i + 1) / numToSolve
+
+    # Print the stats
+    if printOut:
+        print()
+        print()
+        print(f"Successful: {successes}/{total} ({successes / total:6.1%})")
+        print(f"Attempts: avg - {totalAttempts / total:.1f}, max - {maxAttempts}, min - {minAttempts}")
+        print(f"Under 6 Tries: {under6}/{total} ({under6 / total:6.1%})")
+        print(f"Under 6 - Attempts: avg - {under6Attempts / total:.1f}")
+        print()
+
+    if not printOut:
+        yield under6 / total, under6Attempts / total
+
+    return under6 / total, under6Attempts / total
+
+
+# Full function to run the many solver and report progress over a pipe
+def poolManySolver(numToSolve, startingWord, pipe):
+    for retVal in manySolve(numToSolve, starting_word=startingWord, printOut=False):
+        pipe.send(retVal)
+        
+
+# Run many solves with different starting words
+def autoSolve(numToStart, printOut=True):
+
+    # Stat dictionary
+    wordResults = {}
+
+    # Get the starting words
+    startingWords = wordle.dictionary.copy()
+    random.shuffle(startingWords)
+    startingWords = startingWords[:numToStart]
+
+    # Clear the screen
+    if printOut:
+        os.system("cls" if os.name == "nt" else "clear")
+        print("Auto Solve")
+        print()
+        
+    # Get number of cores
+    numCores = min(int(os.cpu_count() / 2), numToStart)
+
+    # Start a process pool
+    processes = []
+    wordsIndex = 0
+    numToSolve = len(wordle.dictionary)
+
+    totalToSolve = numToStart * numToSolve
+    totalDone = 0
+        
+    with Progress() as progress:
+        totalProgress = progress.add_task("[green]Solving...", total=totalToSolve)
+        # Start the processes
+        for i in range(numCores):
+            caller, worker = Pipe()
+            p = Process(target=poolManySolver, args=(numToSolve, startingWords[wordsIndex], worker))
+            p.start()
+            id = progress.add_task(f" - {startingWords[wordsIndex]}", total=1)
+            processes.append({"proc": p, "word": startingWords[wordsIndex], "caller": caller, "progress": id})
+            wordsIndex += 1
+
+        # Continue adding processes until we have all the starting words in queue
+        while wordsIndex < numToStart:
+            for i, p in enumerate(processes):
+                try:
+                    if p["caller"].poll():
+                        c = p["caller"].recv()
+                        if type(c) is tuple:
+                            successRate, avgAttempts = c
+                            wordResults[p["word"]] = (successRate, avgAttempts)
+                            c = 1
+                        progress.update(processes[i]["progress"], completed=c)
+                        totalDone = (wordsIndex - len(processes)) * numToSolve + sum(t.completed for t in progress.tasks if t.id != totalProgress) * numToSolve
+                        progress.update(totalProgress, completed=totalDone)
+                except:
+                    pass
+
+                if p["proc"] is not None and not p["proc"].is_alive():
+                    # Clean up
+                    p["proc"].close()
+                    progress.remove_task(p["progress"])
+
+                    # Start new process with new starting word
+                    newCaller, worker = Pipe()
+                    proc = Process(target=poolManySolver, args=(numToSolve, startingWords[wordsIndex], worker))
+                    proc.start()
+                    id = progress.add_task(f" - {startingWords[wordsIndex]}", total=1)
+                    processes[i] = {"proc": proc, "word": startingWords[wordsIndex], "caller": newCaller, "progress": id}
+                    wordsIndex += 1
+
+        # Wait for all the processes to finish
+        while any([p["proc"] is not None for p in processes]):
+            for i, p in enumerate(processes):
+                try:
+                    if p["caller"].poll():
+                        c = p["caller"].recv()
+                        if type(c) is tuple:
+                            successRate, avgAttempts = c
+                            wordResults[p["word"]] = (successRate, avgAttempts)
+                            c = 1
+                        progress.update(processes[i]["progress"], completed=c)
+                        totalDone = (wordsIndex - len(processes)) * numToSolve + sum(t.completed for t in progress.tasks if t.id != totalProgress) * numToSolve
+                        progress.update(totalProgress, completed=totalDone)
+                except:
+                    pass
+
+                if p["proc"] is not None and not p["proc"].is_alive():
+                    # Clean up
+                    p["proc"].close()
+                    p["proc"] = None
+
+        progress.console.log("Auto Solve complete")
+        
+        progress.refresh()
+
+    # Print the stats
+    if printOut:
+        print()
+        bestStartingWord = max(wordResults, key=lambda x: wordResults[x][0])
+        print(f"Best Starting Word: [green]{bestStartingWord}[/green] ({wordResults[bestStartingWord][0]:.1%})")
+        lowestAttemptsWord = min(wordResults, key=lambda x: wordResults[x][1])
+        print(f"Lowest Attempts Word: [green]{lowestAttemptsWord}[/green] ({wordResults[lowestAttemptsWord][1]:.1f})")
+        print()
+
+    return wordResults
+
+#
+# Main function
+#
 def main():
     index = 0
 
@@ -87,9 +274,10 @@ def main():
         print("-" + "-" * 30 + "-")
         print()
         print("1. Play Game")
-        print("2. Challenge Computer")
-        print("3. Auto Solve")
-        print("4. Quit")
+        print("2. Solve - Challenge Computer")
+        print("3. Many Solve - Solve Lots of Words")
+        print("4. Auto Solve - Many Solve with Different Starting Words")
+        print("5. Quit")
         print()
         choice = input("> ")
         print()
@@ -134,9 +322,9 @@ def main():
             input("[enter] ")
         elif choice == "3":
             # Guess a bunch
-            print("Auto Solve")
+            print("Many Solve")
             print()
-            print("Number of words to solve (a) for all")
+            print("Number of words to solve or (a) for all")
             numToSolve = None
             while numToSolve is None:
                 numToSolve = input("> ").strip().lower()
@@ -156,42 +344,47 @@ def main():
                     if numToSolve > len(wordle.dictionary):
                         numToSolve = len(wordle.dictionary)
 
-            os.system("cls" if os.name == "nt" else "clear")
+            manySolve(numToSolve)
+            input("[enter] ")
 
-            successes = 0
-            total = 0
-            totalAttempts = 0
-            maxAttempts = 0
-            minAttempts = 1000
-            under6 = 0
-
+        elif choice == "4":
+            # Auto Solve
             print("Auto Solve")
             print()
-            print("Solving... [  0.0%]", end="", flush=True)
-            for i in range(numToSolve):
-                success, attempts = solve_word(wordle.get_word_of_the_day(i), printOut=False)
-                
-                if success:
-                    successes += 1
-                    if attempts <= 6:
-                        under6 += 1
-                total += 1
-                totalAttempts += attempts
-                if attempts > maxAttempts:
-                    maxAttempts = attempts
-                if attempts < minAttempts:
-                    minAttempts = attempts
+            print("Number of starting words to try or (a) for all")
+            numToStart = None
+            while numToStart is None:
+                numToStart = input("> ").strip().lower()
+                if numToStart == "a":
+                    numToStart = len(wordle.dictionary)
+                else:
+                    try:
+                        numToStart = int(numToStart)
+                    except:
+                        numToStart = None
+                        print("Invalid number. Try again.")
 
-                print(f"\rSolving... [{(i + 1) / numToSolve:6.1%}]", end="", flush=True)
+                    # Make sure the number is in bounds
+                    if numToStart < 1:
+                        numToStart = None
+                        print("Invalid number. Try again.")
+                    if numToStart > len(wordle.dictionary):
+                        numToStart = len(wordle.dictionary)
 
-            print()
-            print()
-            print(f"Successful: {successes}/{total} ({successes / total:6.1%})")
-            print(f"Under 6 Tries: {under6}/{total} ({under6 / total:6.1%})")
-            print(f"Attempts: avg - {totalAttempts / total:.1f}, max - {maxAttempts}, min - {minAttempts}")
-            print()
-            input("[enter] ")
-        elif choice == "4":
+            # Do the math
+            results = autoSolve(numToStart)
+
+            saveToFile = input("save to file (y/n) ").lower()
+            if saveToFile == "y":
+                print("Saving to file")
+                fileName = f"auto-solve-{time.strftime('%Y-%m-%d-%H-%M-%S')}.csv"
+                with open(fileName, "w") as f:
+                    f.write("Starting Word,Success Rate,Average Attempts\n")
+                    for word in results:
+                        f.write(f"{word},{results[word][0]},{results[word][1]}\n")
+                print(f"Saved to {fileName}")
+
+        elif choice == "5":
             # Quit
             break
         else:
