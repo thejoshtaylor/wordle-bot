@@ -4,6 +4,8 @@
 
 import time
 import random
+import keyboard
+from rich import print
 
 # This module offers helper functions to solve the wordle game
 
@@ -43,6 +45,57 @@ def get_valid_word():
         elif word == '':
             return get_word_of_the_day()
         print("Invalid word. Try again.")
+        
+# This gets a valid response from wordle from user input
+def get_valid_wordle_response(guess):
+    
+    def generatePrintString(response, selectedChar):
+        printString = "> "
+        for i in range(5):
+            if i == selectedChar:
+                printString += f"[underline]"
+            if len(response) > i:
+                if response[i] == 'g':
+                    printString += f"[green]{guess[i]}[/green]"
+                elif response[i] == 'y':
+                    printString += f"[yellow]{guess[i]}[/yellow]"
+                else:
+                    printString += f"[gray]{guess[i]}[/gray]"
+            else:
+                printString += guess[i]
+
+            if i == selectedChar:
+                printString += f"[/underline]"
+        return printString
+    
+    print()
+
+    # Get keypresses
+    response = ""
+    selectedChar = 0
+    done = False
+
+    while not done:
+        print(generatePrintString(response, selectedChar), end="\r")
+
+        c = keyboard.read_event()
+        if c.event_type == keyboard.KEY_UP:
+            if len(response) < 5:
+                if c.name in ['g', 'y', 'b']:
+                    response += c.name
+                    selectedChar += 1
+            else:
+                if c.name == 'enter':
+                    done = True
+
+            if c.name == 'backspace':
+                response = response[:-1]
+                selectedChar -= 1
+                if selectedChar < 0:
+                    selectedChar = 0
+
+    print(generatePrintString(response, selectedChar))
+    return response
 
 # This function gets the green, yellow, and gray pattern of a guess
 def check_guess(word, guess):
@@ -79,12 +132,26 @@ def colored_word(guess, response):
     colored_word = ""
     for i in range(5):
         if response[i] == 'g':
-            colored_word += f"\033[92m{guess[i]}\033[0m"
+            colored_word += f"[green]{guess[i]}[/green]"
         elif response[i] == 'y':
-            colored_word += f"\033[93m{guess[i]}\033[0m"
+            colored_word += f"[yellow]{guess[i]}[/yellow]"
         else:
             colored_word += guess[i]
     return colored_word
+
+# This function takes the response and returns the printable string for console coloring
+def colored_response(response):
+    assert len(response) == 5
+
+    colored_response = ""
+    for i in range(5):
+        if response[i] == 'g':
+            colored_response += f"[green]{response[i]}[/green]"
+        elif response[i] == 'y':
+            colored_response += f"[yellow]{response[i]}[/yellow]"
+        else:
+            colored_response += response[i]
+    return colored_response
 
 # This function returns the list of words that match the response
 def find_words(guess, response, dict=None):

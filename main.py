@@ -75,6 +75,27 @@ def solve_word(word, starting_word="ranes", printOut=True):
 
     return solved, attempts + 1
 
+# Help solve the daily wordle
+def help_me_solve():
+    wordToTry = "alone"
+    tempDict = None
+    for i in range(6):
+        # Tell the user to enter a word
+        print(f"Enter word: {wordToTry}")
+        print("Enter the response from wordle (g for green, y for yellow, b for black/gray):")
+        results = wordle.get_valid_wordle_response(wordToTry)
+        print(f"Results: {wordle.colored_word(wordToTry, results)}")
+
+        if all([r == 'g' for r in results]):
+            print(f"Solved in {i + 1} attempts!")
+            print()
+            break
+
+        # Find the best word to try next
+        tempDict = wordle.find_words(wordToTry, results, tempDict)
+        wordToTry = getBestWord(tempDict)
+
+
 # Run many solves
 def manySolve(numToSolve, starting_word="ranes", printOut=True):
 
@@ -274,10 +295,11 @@ def main():
         print("-" + "-" * 30 + "-")
         print()
         print("1. Play Game")
-        print("2. Solve - Challenge Computer")
-        print("3. Many Solve - Solve Lots of Words")
-        print("4. Auto Solve - Many Solve with Different Starting Words")
-        print("5. Quit")
+        print("2. Help Me Solve - Solve Wordle Faster!")
+        print("3. Solve - Challenge Computer")
+        print("4. Many Solve - Solve Lots of Words")
+        print("5. Auto Solve - Many Solve with Different Starting Words")
+        print("6. Quit")
         print()
         choice = input("> ")
         print()
@@ -312,6 +334,11 @@ def main():
                 
             index = index + 1
         elif choice == "2":
+            # Run the algorithm to solve the game
+            help_me_solve()
+            print()
+            input("[enter] ")
+        elif choice == "3":
             # Challenge Computer
             print("Word to Guess")
             word = wordle.get_valid_word()
@@ -320,7 +347,7 @@ def main():
             solve_word(word)
             print()
             input("[enter] ")
-        elif choice == "3":
+        elif choice == "4":
             # Guess a bunch
             print("Many Solve")
             print()
@@ -347,7 +374,7 @@ def main():
             manySolve(numToSolve)
             input("[enter] ")
 
-        elif choice == "4":
+        elif choice == "5":
             # Auto Solve
             print("Auto Solve")
             print()
@@ -384,7 +411,7 @@ def main():
                         f.write(f"{word},{results[word][0]},{results[word][1]}\n")
                 print(f"Saved to {fileName}")
 
-        elif choice == "5":
+        elif choice == "6":
             # Quit
             break
         else:
