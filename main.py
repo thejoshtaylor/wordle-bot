@@ -77,7 +77,7 @@ def solve_word(word, starting_word="ranes", printOut=True):
 
 # Help solve the daily wordle
 def help_me_solve():
-    wordToTry = "alone"
+    wordToTry = "ranes"
     tempDict = None
     for i in range(6):
         # Tell the user to enter a word
