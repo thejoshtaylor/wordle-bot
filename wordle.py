@@ -46,9 +46,11 @@ def get_valid_word():
             return get_word_of_the_day()
         print("Invalid word. Try again.")
         
-# This gets a valid response from wordle from user input
-def get_valid_wordle_response(guess):
-    
+# This gets a valid response from wordle from user input.
+# allow_override: if True, pressing '1' before any letters are entered clears
+# the line and returns None, signalling the caller to ask for a custom word.
+def get_valid_wordle_response(guess, allow_override=False):
+
     def generatePrintString(response, selectedChar):
         printString = "> "
         for i in range(5):
@@ -67,10 +69,9 @@ def get_valid_wordle_response(guess):
             if i == selectedChar:
                 printString += f"[/underline]"
         return printString
-    
+
     print()
 
-    # Get keypresses
     response = ""
     selectedChar = 0
     done = False
@@ -80,6 +81,11 @@ def get_valid_wordle_response(guess):
 
         c = keyboard.read_event()
         if c.event_type == keyboard.KEY_UP:
+            # Override: user wants to enter their own word
+            if allow_override and c.name == '1' and len(response) == 0:
+                print("\r" + " " * 30 + "\r", end="")  # clear the line
+                return None
+
             if len(response) < 5:
                 if c.name in ['g', 'y', 'b']:
                     response += c.name

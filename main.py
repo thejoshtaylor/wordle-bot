@@ -11,6 +11,17 @@ from rich.progress import Progress
 from rich import print
 import wordle
 
+
+# Drain any characters the keyboard library echoed into stdin before an input() call.
+def _flush_stdin():
+    if os.name == 'nt':
+        import msvcrt
+        while msvcrt.kbhit():
+            msvcrt.getch()
+    else:
+        import sys, termios
+        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+
 # Get the best word from the dictionary
 def get_best_word(word_list):
     # The csv is sorted by most common words, so return the first match found
@@ -75,14 +86,22 @@ def solve_word(word, starting_word="ranes", printOut=True):
 
 # Help solve the daily wordle
 def help_me_solve():
-    wordToTry = "ranes"
-    tempDict = None
+    word_to_try = "ranes"
+    temp_dict = None
     for i in range(6):
-        # Tell the user to enter a word
-        print(f"Enter word: {wordToTry}")
-        print("Enter the response from wordle (g for green, y for yellow, b for black/gray):")
-        results = wordle.get_valid_wordle_response(wordToTry)
-        print(f"Results: {wordle.colored_word(wordToTry, results)}")
+        print(f"\nSuggested word: [bold]{word_to_try}[/bold]")
+        print("Enter response (g/y/b) — or press [1] to use your own word:")
+
+        results = wordle.get_valid_wordle_response(word_to_try, allow_override=True)
+
+        if results is None:
+            # '1' was pressed — flush it from stdin then ask for a custom word
+            _flush_stdin()
+            print("Enter your word:")
+            word_to_try = wordle.get_valid_word()
+            results = wordle.get_valid_wordle_response(word_to_try)
+
+        print(f"Results: {wordle.colored_word(word_to_try, results)}")
 
         if all([r == 'g' for r in results]):
             print(f"Solved in {i + 1} attempts!")
@@ -90,8 +109,8 @@ def help_me_solve():
             break
 
         # Find the best word to try next
-        tempDict = wordle.find_words(wordToTry, results, tempDict)
-        wordToTry = get_best_word(tempDict)
+        temp_dict = wordle.find_words(word_to_try, results, temp_dict)
+        word_to_try = get_best_word(temp_dict)
 
 
 # Run many solves
