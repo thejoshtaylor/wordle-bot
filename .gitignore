@@ -161,5 +161,6 @@ cython_debug/
 
 # Pickled results
 *.pkl
-*.csv
-*.xlsx
+
+# Excel lock files
+~$*

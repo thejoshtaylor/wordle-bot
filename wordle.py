@@ -13,6 +13,11 @@ from rich import print
 with open("dictionary.txt", "r") as f:
     dictionary = f.read().splitlines()
 
+with open("dict-rank.csv", "r") as f:
+    dict_rank = f.read().splitlines()
+    dict_rank = [line.split(",")[0] for line in dict_rank]
+    dict_rank = dict_rank[:5000]  # only keep the top 5000 words
+
 # Get word of the day based on random number determined by day of the year and year
 def get_word_of_the_day(index=0):
     assert index >= 0
