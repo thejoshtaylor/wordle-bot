@@ -164,3 +164,7 @@ cython_debug/
 
 # Excel lock files
 ~$*
+# daily wordle job
+scripts/daily/chrome-profile/
+scripts/daily/logs/
+scripts/daily/config.json

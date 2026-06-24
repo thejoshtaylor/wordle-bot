@@ -1,0 +1,11 @@
+{
+  "start_word": "lares",
+  "incognito": true,
+  "chrome_profile_dir": "scripts/daily/chrome-profile",
+  "chat_ids": [
+    "any;+;chatXXXXXXXXXXXXXXXX",
+    "any;+;XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  ],
+  "error_notify": "",
+  "send_on_failure": false
+}
