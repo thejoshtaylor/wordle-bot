@@ -1,0 +1,5 @@
+start_word,new_avg,new_median,new_fails,old_avg,old_median,old_fails
+lares,4.024524,4.0,156,4.278791,4.0,238
+slate,3.964685,4.0,113,4.215421,4.0,203
+crate,3.978615,4.0,127,4.254856,4.0,205
+salet,3.955660,4.0,128,4.226996,4.0,217

@@ -22,6 +22,30 @@ def _flush_stdin():
         import sys, termios
         termios.tcflush(sys.stdin, termios.TCIFLUSH)
 
+# Candidate-answer pool: the 5097-word goal set (top-5000 dict-rank + all
+# wordle-to-rank words), same set the trainer optimised n over. Answers live
+# here, so the solver tracks/reduces within it rather than the full 14.8k
+# dictionary (which would drag the reduction phase into rare junk words).
+def goal_words():
+    dr = [l.split(",")[0].strip().lower() for l in open("dict-rank.csv")]
+    goals = dr[:5000]
+    with open("wordle-to-rank.csv") as f:
+        r = csv.reader(f)
+        next(r)
+        for row in r:
+            if row:
+                goals.append(row[0].strip().lower())
+    return list(dict.fromkeys(goals))
+
+GOAL_WORDS = goal_words()
+
+# The "n" threshold separating the two solver phases (see pick_next_guess).
+# Tuned with scripts/train_n.py over the 5097-word goal set in hard mode:
+# pure reduction wins, so a small threshold is best (n=0..2 tie at avg 3.976
+# guesses vs 4.279 for the old most-common-only method). See
+# scripts/n-threshold-training.csv.
+N_THRESHOLD = 2
+
 # Get the best word from the dictionary
 def get_best_word(word_list):
     # The csv is sorted by most common words, so return the first match found
@@ -33,12 +57,52 @@ def get_best_word(word_list):
     # Fallback: return the first word in the list
     return word_list[0]
 
+
+# Feedback (g/y/' ') of guessing `guess` when the answer is `answer`, no asserts.
+def _pattern(answer, guess):
+    resp = [' '] * 5
+    rem = list(answer)
+    for i in range(5):
+        if guess[i] == answer[i]:
+            resp[i] = 'g'
+            rem[i] = ' '
+    for i in range(5):
+        if resp[i] != 'g' and guess[i] in rem:
+            resp[i] = 'y'
+            rem[rem.index(guess[i])] = ' '
+    return tuple(resp)
+
+
+# Learning phase: among the remaining words (hard mode), pick the one that on
+# average cuts the remaining set down the most (minimises expected remaining,
+# i.e. the smallest sum of squared feedback-bucket sizes). Ties -> most common.
+def best_reduction_word(word_list):
+    best, best_score = word_list[0], None
+    for guess in word_list:
+        buckets = {}
+        for answer in word_list:
+            code = _pattern(answer, guess)
+            buckets[code] = buckets.get(code, 0) + 1
+        score = sum(c * c for c in buckets.values())
+        if best_score is None or score < best_score:
+            best, best_score = guess, score
+    return best
+
+
+# Two-phase next-guess selection.
+#   remaining > n -> LEARNING : the word that shrinks the candidate set most.
+#   remaining <= n -> GUESSING : the most common remaining word.
+def pick_next_guess(word_list, n=N_THRESHOLD):
+    if len(word_list) <= n:
+        return get_best_word(word_list)
+    return best_reduction_word(word_list)
+
 # Automatically solve the wordle
-def solve_word(word, starting_word="ranes", printOut=True):
+def solve_word(word, starting_word="plant", printOut=True):
     # Initialize the variables
     attempts = 0
     solved = False
-    tempDict = None
+    tempDict = list(GOAL_WORDS)  # candidate answers tracked within the goal set
 
     test_word = starting_word
 
@@ -64,8 +128,8 @@ def solve_word(word, starting_word="ranes", printOut=True):
             err = "no matching words"
             break
 
-        # Pick the "most common" word
-        test_word = get_best_word(tempDict)
+        # Two-phase pick: reduce while many remain, then guess the most common
+        test_word = pick_next_guess(tempDict)
 
         # Update the attempts
         attempts += 1
@@ -86,8 +150,8 @@ def solve_word(word, starting_word="ranes", printOut=True):
 
 # Help solve the daily wordle
 def help_me_solve():
-    word_to_try = "ranes"
-    temp_dict = None
+    word_to_try = "plant"
+    temp_dict = list(GOAL_WORDS)
     for i in range(6):
         print(f"\nSuggested word: [bold]{word_to_try}[/bold]")
         print("Enter response (g/y/b) — or press [1] to use your own word:")
@@ -110,11 +174,11 @@ def help_me_solve():
 
         # Find the best word to try next
         temp_dict = wordle.find_words(word_to_try, results, temp_dict)
-        word_to_try = get_best_word(temp_dict)
+        word_to_try = pick_next_guess(temp_dict)
 
 
 # Run many solves
-def many_solve(num_to_solve, starting_word="ranes", printOut=True):
+def many_solve(num_to_solve, starting_word="plant", printOut=True):
 
     # Stat variables
     successes = 0

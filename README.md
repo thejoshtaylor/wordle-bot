@@ -89,18 +89,28 @@ Exits the program.
 ### Dictionary
 The bot uses a list of 12,972 valid 5-letter English words (`dictionary.txt`), the same set accepted by Wordle.
 
-### Guessing Strategy
-1. **Start** with a fixed opening word (`ranes` by default — chosen for its high-frequency, common letters).
+### Guessing Strategy (two-phase, hard mode)
+1. **Start** with a fixed opening word (`plant` by default — the best opener found by `scripts/eval_goalsets.py`).
 2. **Check** the response: each letter is marked green, yellow, or gray.
-3. **Filter** the remaining candidate words using `find_words()`:
+3. **Filter** the candidate answers with `find_words()`, tracked within the
+   **goal set** (the 5097-word answer pool, not the full dictionary):
    - Green letters lock a letter to its exact position.
    - Yellow letters require a letter to appear somewhere else.
    - Gray letters eliminate a letter from consideration entirely (with correct duplicate handling).
-4. **Select** the next guess using `get_best_word()`, which picks the highest-frequency word from the remaining candidates using `dict-rank.csv` (a corpus-ranked word list).
+4. **Select** the next guess with `pick_next_guess()` (hard mode — guesses are
+   drawn from the remaining candidates):
+   - **Learning phase** (remaining `> n`): `best_reduction_word()` picks the word
+     that, on average, shrinks the candidate set the most.
+   - **Guessing phase** (remaining `<= n`): `get_best_word()` picks the most
+     common remaining word (`dict-rank.csv`).
+   - `n = 2` (`N_THRESHOLD`) was tuned by `scripts/train_n.py`; pure reduction wins.
 5. **Repeat** until solved.
 
-### Word Selection
-`dict-rank.csv` ranks all words by their frequency in real English text (e.g., "which" appears ~3 billion times). By always guessing the most commonly used remaining word, the bot prioritizes realistic English words that are more likely to be the answer.
+### Why two phases
+Always guessing the most common word (the old strategy) wastes turns once many
+candidates remain. Reducing first, then switching to frequency only when the set
+is tiny, drops the average from ~4.28 to ~3.90 guesses over the goal set. See
+`scripts/*-training.csv` and `scripts/*-matrix.csv` for the tuning data.
 
 ### Parallelism
 The *Auto Solve* mode uses Python's `multiprocessing` module to run multiple starting-word evaluations concurrently (up to `cpu_count / 2` parallel workers), with a live progress display powered by Rich.
@@ -111,7 +121,7 @@ The *Auto Solve* mode uses Python's `multiprocessing` module to run multiple sta
 
 ```
 wordle-bot/
-├── main.py          # Entry point — menu, solver logic, benchmark modes
+├── main.py          # Entry point — menu, two-phase solver, benchmark modes
 ├── wordle.py        # Core helpers — word checking, filtering, colored output
 ├── train.py         # Legacy training/optimization experiments (mostly archived)
 ├── process.py       # Utility: convert results.pkl → results.csv
@@ -119,6 +129,13 @@ wordle-bot/
 ├── dict-rank.csv    # Word frequency rankings used for next-guess selection
 ├── results.pkl      # Pre-computed optimization data (not required for normal use)
 ├── requirements.txt # Python dependencies
+├── scripts/
+│   ├── train_n.py        # Sweep the n threshold over the goal set -> CSV
+│   ├── eval_pools.py     # Compare candidate answer pools (graded on real answers)
+│   ├── eval_matrix.py    # Opener x n matrix on the goal set
+│   ├── eval_goalsets.py  # Opener x goal-set matrix
+│   ├── compare_methods.py # Old vs new solver on a single word
+│   └── *.csv             # Tuning results
 └── LICENSE          # MIT License
 ```
 

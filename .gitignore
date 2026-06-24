@@ -168,3 +168,9 @@ cython_debug/
 scripts/daily/chrome-profile/
 scripts/daily/logs/
 scripts/daily/config.json
+
+# Wordle trainer pattern matrix cache (large, regenerable)
+scripts/.pattern_cache.npy
+
+# macOS
+.DS_Store

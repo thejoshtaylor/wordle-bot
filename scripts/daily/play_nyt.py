@@ -136,7 +136,7 @@ def play(config, headless=False):
     profile = os.path.join(ROOT, config.get("chrome_profile_dir", "scripts/daily/chrome-profile"))
     os.makedirs(profile, exist_ok=True)
 
-    start_word = config.get("start_word", "lares")
+    start_word = config.get("start_word", "plant")
 
     result = {"solved": False, "attempts": 0, "guesses": [], "responses": [],
               "puzzle_no": None, "answer": None, "date": time.strftime("%Y-%m-%d")}
@@ -166,7 +166,7 @@ def play(config, headless=False):
             _enable_hard_mode(page)
 
             guess = start_word
-            temp_dict = None
+            temp_dict = list(solver.GOAL_WORDS)  # track answers within goal set
             for attempt in range(6):
                 _type_guess(page, attempt, guess)
                 page.keyboard.press("Enter")
@@ -184,7 +184,7 @@ def play(config, headless=False):
                 temp_dict = wordle.find_words(guess, resp, temp_dict)
                 if not temp_dict:
                     break
-                guess = solver.get_best_word(temp_dict)
+                guess = solver.pick_next_guess(temp_dict)
                 page.wait_for_timeout(400)
 
             page.wait_for_timeout(800)
